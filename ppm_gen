@@ -9,7 +9,7 @@
 // Dead-time between each channel in the PPM-stream. 
 #define DEAD_TIME 800
 
-// Number of PPM channels out. 1 - 12 channels supported (both incl). 
+// Number of PPM channels out. 1 - 12 channels supported (both incl).
 #define NUMBER_OF_CHANNELS 8
 
 // Set frame-length depending on channels
@@ -47,18 +47,22 @@ void setup() {
    // OCR1A is used to generate PPM signal and later reset counter (to control frame-length)
     OCR1A = DEAD_TIME;      
   }
-  
+ 
+
+// This part reads the ppm value serially from the treansmitter  
  void loop(){
    Serial.print(',');
  }
 unsigned char channel_number =1;
 long channelvalue[13];
 int i=0;
-long channel_value[13] ;//={2010,2010,2100,2100,2100,2100,2100,2100};  
+long channel_value[13] ;//Uncomment the array and change values if needed ={2010,2010,2100,2100,2100,2100,2100,2100};  
 void SerialEvent()
 {
   while(Serial.available()&& i<9)
      { channelvalue[i]=Serial.read();
+       // Uncomment the below line for ppm generation
+       // Serial.write(channelvalue[i]);
        channel_value[i]+= channelvalue[i];
        i++;
      }
@@ -118,7 +122,7 @@ ISR(TIMER1_COMPA_vect) {
           else {
             
             // We have to use OCR1A as top too, as ICR1 is used for input capture and OCR1B can't be used as top. 
-            OCR1A = FRAME_LENGTH; //FRAME_LENGTH; //FRAME_LENGTH;
+            OCR1A = FRAME_LENGTH; //FRAME_LENGTH;
             TCCR1B |= (1<<WGM12);
           }
   
