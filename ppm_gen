@@ -1,0 +1,130 @@
+/////////////////////////////////////////////////////////////
+//                                                         //
+// Author : Priyanka Mohandas                              //
+//                                                         //
+// Date   : 30/3/2015                                      //
+//                                                         //
+/////////////////////////////////////////////////////////////
+
+// Dead-time between each channel in the PPM-stream. 
+#define DEAD_TIME 800
+
+// Number of PPM channels out. 1 - 12 channels supported (both incl). 
+#define NUMBER_OF_CHANNELS 8
+
+// Set frame-length depending on channels
+#define FRAME_LENGTH 5003+NUMBER_OF_CHANNELS*5000
+
+//#define TOP 65535
+#define TOP 5003+NUMBER_OF_CHANNELS*5000
+
+//extern long channel_value[];
+void setup() {
+    
+    // Init serial communication
+     Serial.begin(115200);  
+     
+//     output-pin used to generate PPM-signal
+     pinMode(9,OUTPUT); 
+     
+ TCCR1A = 
+   (0<<WGM10) |
+   (0<<WGM11) |
+   (0<<COM1A1) |
+   (1<<COM1A0) | // Toggle pin om compare-match
+   (0<<COM1B1) |
+   (0<<COM1B0);  
+  
+    TCCR1B =
+    (1<<ICNC1)| // Input capture noise canceler - set to active 
+    (1<<ICES1)| // Input capture edge select. 1 = rising, 0 = falling. We will toggle this, doesn't matter what it starts at        
+    (0<<CS10) | //Prescale 8  
+    (1<<CS11) | //Prescale 8  
+    (0<<CS12) | //Prescale 8
+    (0<<WGM13)|    
+    (1<<WGM12); // CTC mode (Clear timer on compare match) with ICR1 as top.       
+        
+   // OCR1A is used to generate PPM signal and later reset counter (to control frame-length)
+    OCR1A = DEAD_TIME;      
+  }
+  
+ void loop(){
+   Serial.print(',');
+ }
+unsigned char channel_number =1;
+long channelvalue[13];
+int i=0;
+long channel_value[13] ;//={2010,2010,2100,2100,2100,2100,2100,2100};  
+void SerialEvent()
+{
+  while(Serial.available()&& i<9)
+     { channelvalue[i]=Serial.read();
+       channel_value[i]+= channelvalue[i];
+       i++;
+     }
+}
+
+       
+// ===========================
+// Timer 1 compare A vector
+// ===========================
+
+ISR(TIMER1_COMPA_vect) {
+
+  
+  if (OCR1A == TOP) {
+      TCCR1A = 
+     (0<<WGM10) |
+     (0<<WGM11) |
+     (1<<COM1A1) |
+     (1<<COM1A0) |
+     (0<<COM1B1) |
+     (0<<COM1B0);   
+  
+      channel_number =1;
+      OCR1A = DEAD_TIME;
+  
+      TCCR1B &= ~(1<<WGM12);
+  }
+  
+  
+  else {
+          if (channel_number == 1) {
+             
+            // After first time, when pin have been set hgih, we toggle the pin at each interrupt
+              TCCR1A = 
+             (0<<WGM10) |
+             (0<<WGM11) |
+             (0<<COM1A1) |
+             (1<<COM1A0) |
+             (0<<COM1B1) |
+             (0<<COM1B0);   
+          }
+          
+          
+          if ((channel_number-1) < NUMBER_OF_CHANNELS*2) {
+            
+                if ((channel_number-1)%2 == 1) {
+                 OCR1A += DEAD_TIME; 
+                }
+                
+                else {
+                 OCR1A += channel_value[(channel_number+1)/2];
+                }
+                
+              channel_number++;
+          }
+
+          else {
+            
+            // We have to use OCR1A as top too, as ICR1 is used for input capture and OCR1B can't be used as top. 
+            OCR1A = FRAME_LENGTH; //FRAME_LENGTH; //FRAME_LENGTH;
+            TCCR1B |= (1<<WGM12);
+          }
+  
+  }
+  
+  
+} 
+ 
+  
